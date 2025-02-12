@@ -17,6 +17,41 @@
         .wrong { background-color: #e74c3c !important; }
         .music-control { font-size: 20px; margin-top: 20px; padding: 10px 20px; cursor: pointer; background-color: #f39c12; color: white; border: none; border-radius: 10px; transition: 0.3s; }
         .music-control:hover { background-color: #e67e22; }
+        .results { margin-top: 30px; display: none; }
+        .result-item {
+            margin: 10px;
+            padding: 20px;
+            background-color: #ecf0f1;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: right;
+            transition: transform 0.3s ease-in-out;
+        }
+        .result-item.correct {
+            background-color: #2ecc71;
+            transform: scale(1.05);
+        }
+        .result-item.wrong {
+            background-color: #e74c3c;
+            transform: scale(1.05);
+        }
+        .result-item p {
+            margin: 5px 0;
+            font-size: 18px;
+        }
+        .result-item p strong {
+            font-weight: bold;
+        }
+        .result-item.correct::before {
+            content: '✔️';
+            margin-left: 10px;
+        }
+        .result-item.wrong::before {
+            content: '❌';
+            margin-left: 10px;
+        }
+        #showResultsButton { margin-top: 20px; padding: 10px 20px; background-color: #3498db; color: white; font-size: 20px; border: none; border-radius: 10px; cursor: pointer; transition: 0.3s; }
+        #showResultsButton:hover { background-color: #2980b9; transform: scale(1.05); }
     </style>
 </head>
 <body>
@@ -37,6 +72,9 @@
     <audio id="wrongSound">
         <source src="wrong.mp3" type="audio/mpeg">
     </audio>
+
+    <div class="results" id="results"></div>
+    <button id="showResultsButton">הצג תוצאות</button>
 
     <script>
         const letters = [
@@ -74,7 +112,8 @@
         let timer;
         let musicPlaying = false;
         let timerInterval;
-        
+        let results = [];
+
         // פונקציה להפעלת והפסקת המוזיקה
         document.getElementById("musicButton").onclick = function() {
             if (musicPlaying) {
@@ -107,6 +146,14 @@
         // פונקציה לבדוק תשובה
         function checkAnswer(option, button) {
             clearInterval(timerInterval);
+            let result = {
+                letter: currentLetter.letter,
+                chosenAnswer: button.textContent,
+                correctAnswer: currentLetter.name,
+                isCorrect: option.letter === currentLetter.letter
+            };
+            results.push(result);
+
             if (option.letter === currentLetter.letter) {
                 button.classList.add("correct");
                 score++;
@@ -151,6 +198,26 @@
             });
             document.getElementById("message").textContent = "";
         }
+
+        // פונקציה להציג את התוצאות
+        function showResults() {
+            let resultsContainer = document.getElementById("results");
+            resultsContainer.innerHTML = "<h2>תוצאות המשחק:</h2>";
+            results.forEach(result => {
+                let resultItem = document.createElement("div");
+                resultItem.className = "result-item " + (result.isCorrect ? "correct" : "wrong");
+                resultItem.innerHTML = ` 
+                    <p><strong>האות:</strong> ${result.letter}</p>
+                    <p><strong>תשובה נכונה:</strong> ${result.correctAnswer}</p>
+                    <p><strong>תשובה שלך:</strong> ${result.chosenAnswer}</p>
+                `;
+                resultsContainer.appendChild(resultItem);
+            });
+            resultsContainer.style.display = "block";
+        }
+
+        // כפתור לצפייה בתוצאות בכל שלב
+        document.getElementById("showResultsButton").onclick = showResults;
 
         generateQuestion();
     </script>
