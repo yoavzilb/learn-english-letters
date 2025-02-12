@@ -12,81 +12,136 @@
         .option { font-size: 32px; padding: 20px 30px; border-radius: 15px; border: none; cursor: pointer; background-color: #3498db; color: white; transition: 0.3s; }
         .option:hover { background-color: #2980b9; transform: scale(1.1); }
         .message { font-size: 32px; margin-top: 20px; font-weight: bold; transition: opacity 0.5s; }
-        .score, .streak { font-size: 28px; margin-top: 20px; color: #e74c3c; font-weight: bold; }
+        .score, .timer { font-size: 28px; margin-top: 20px; color: #e74c3c; font-weight: bold; }
         .correct { background-color: #2ecc71 !important; }
         .wrong { background-color: #e74c3c !important; }
-        .controls { margin: 20px; }
+        .music-control { font-size: 20px; margin-top: 20px; padding: 10px 20px; cursor: pointer; background-color: #f39c12; color: white; border: none; border-radius: 10px; transition: 0.3s; }
+        .music-control:hover { background-color: #e67e22; }
     </style>
 </head>
 <body>
     <h1>משחק לימוד אותיות באנגלית</h1>
-    <div class="controls">
-        <label for="difficulty">בחר רמת קושי:</label>
-        <select id="difficulty" onchange="generateQuestion()">
-            <option value="uppercase">אותיות גדולות</option>
-            <option value="lowercase">אותיות קטנות</option>
-            <option value="mixed">מעורב</option>
-        </select>
-    </div>
     <div class="letter" id="letter"></div>
     <div class="options" id="options"></div>
     <div class="message" id="message"></div>
     <div class="score">נקודות: <span id="score">0</span></div>
-    <div class="streak">רצף תשובות נכונות: <span id="streak">0</span></div>
-    
-    <audio id="correctSound" src="correct.mp3"></audio>
-    <audio id="wrongSound" src="wrong.mp3"></audio>
-    <audio id="backgroundMusic" src="background.mp3" loop autoplay></audio>
-    <audio id="letterSound"></audio>
+    <div class="timer">זמן: <span id="timer">10</span> שניות</div>
+    <button class="music-control" id="musicButton">🔊 השמע מוזיקה</button>
+    <audio id="backgroundMusic" loop>
+        <source src="music.mp3" type="audio/mpeg">
+        הדפדפן שלך אינו תומך בניגון אודיו.
+    </audio>
+    <audio id="correctSound">
+        <source src="correct.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="wrongSound">
+        <source src="wrong.mp3" type="audio/mpeg">
+    </audio>
 
     <script>
         const letters = [
-            { letter: "A", small: "a", name: "אֵיי", sound: "A.mp3" },
-            { letter: "B", small: "b", name: "בִּי", sound: "B.mp3" },
-            { letter: "C", small: "c", name: "סִי", sound: "C.mp3" },
-            { letter: "D", small: "d", name: "דִי", sound: "D.mp3" },
-            { letter: "E", small: "e", name: "אִי", sound: "E.mp3" },
-            { letter: "F", small: "f", name: "אֵף", sound: "F.mp3" },
-            { letter: "G", small: "g", name: "גִ'י", sound: "G.mp3" }
-            // הוסף את שאר האותיות
+            { letter: "A", small: "a", name: "אֵיי" },
+            { letter: "B", small: "b", name: "בִּי" },
+            { letter: "C", small: "c", name: "סִי" },
+            { letter: "D", small: "d", name: "דִי" },
+            { letter: "E", small: "e", name: "אִי" },
+            { letter: "F", small: "f", name: "אֵף" },
+            { letter: "G", small: "g", name: "גִ'י" },
+            { letter: "H", small: "h", name: "אֵייץ'" },
+            { letter: "I", small: "i", name: "אַיי" },
+            { letter: "J", small: "j", name: "גֵ'יי" },
+            { letter: "K", small: "k", name: "קֵיי" },
+            { letter: "L", small: "l", name: "אֵל" },
+            { letter: "M", small: "m", name: "אֵם" },
+            { letter: "N", small: "n", name: "אֵן" },
+            { letter: "O", small: "o", name: "אוֹ" },
+            { letter: "P", small: "p", name: "פִּי" },
+            { letter: "Q", small: "q", name: "קְיוּ" },
+            { letter: "R", small: "r", name: "אַר" },
+            { letter: "S", small: "s", name: "אֵס" },
+            { letter: "T", small: "t", name: "טִי" },
+            { letter: "U", small: "u", name: "יוּ" },
+            { letter: "V", small: "v", name: "וִי" },
+            { letter: "W", small: "w", name: "דָבְּלְיוּ" },
+            { letter: "X", small: "x", name: "אֵקס" },
+            { letter: "Y", small: "y", name: "וַואי" },
+            { letter: "Z", small: "z", name: "זִי" }
         ];
-        
-        let score = 0;
-        let streak = 0;
-        let currentLetter = {};
-        let answered = false;
 
-        function getRandomLetter() {
-            return letters[Math.floor(Math.random() * letters.length)];
+        let score = 0;
+        let timeLeft;
+        let currentLetter;
+        let timer;
+        let musicPlaying = false;
+        let timerInterval;
+        
+        // פונקציה להפעלת והפסקת המוזיקה
+        document.getElementById("musicButton").onclick = function() {
+            if (musicPlaying) {
+                document.getElementById("backgroundMusic").pause();
+                musicPlaying = false;
+                this.textContent = "🔊 השמע מוזיקה";
+            } else {
+                document.getElementById("backgroundMusic").play();
+                musicPlaying = true;
+                this.textContent = "🔇 הפסק מוזיקה";
+            }
+        };
+
+        // פונקציה להתחלת זמן המשחק
+        function startTimer() {
+            timeLeft = 10;
+            document.getElementById("timer").textContent = timeLeft;
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById("timer").textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById("message").textContent = "נגמר הזמן!";
+                    showCorrectAnswer();
+                    setTimeout(generateQuestion, 2000);
+                }
+            }, 1000);
         }
 
-        function generateQuestion() {
-            answered = false;
-            let difficulty = document.getElementById("difficulty").value;
-            currentLetter = getRandomLetter();
-            
-            let displayLetter = difficulty === "lowercase" ? currentLetter.small : 
-                               difficulty === "mixed" ? (Math.random() < 0.5 ? currentLetter.letter : currentLetter.small) :
-                               currentLetter.letter;
-            
-            document.getElementById("letter").textContent = displayLetter;
-            document.getElementById("letterSound").src = currentLetter.sound;
-            document.getElementById("letterSound").play();
-            
-            let optionsSet = new Set();
-            optionsSet.add(currentLetter);
-            while (optionsSet.size < 4) {
-                let randomLetter = getRandomLetter();
-                if (!optionsSet.has(randomLetter)) {
-                    optionsSet.add(randomLetter);
-                }
+        // פונקציה לבדוק תשובה
+        function checkAnswer(option, button) {
+            clearInterval(timerInterval);
+            if (option.letter === currentLetter.letter) {
+                button.classList.add("correct");
+                score++;
+                document.getElementById("score").textContent = score;
+                document.getElementById("correctSound").play();
+                document.getElementById("message").textContent = "תשובה נכונה!";
+            } else {
+                button.classList.add("wrong");
+                document.getElementById("wrongSound").play();
+                document.getElementById("message").textContent = "תשובה שגויה!";
             }
-            
-            const options = Array.from(optionsSet).sort(() => 0.5 - Math.random());
-            
-            const optionsContainer = document.getElementById("options");
+            setTimeout(generateQuestion, 1000);
+        }
+
+        // פונקציה להציג את התשובה הנכונה בסיום הזמן
+        function showCorrectAnswer() {
+            const buttons = document.querySelectorAll('.option');
+            buttons.forEach(button => {
+                if (button.textContent === currentLetter.name) {
+                    button.classList.add("correct");
+                }
+            });
+        }
+
+        // פונקציה ליצירת שאלה חדשה
+        function generateQuestion() {
+            clearInterval(timerInterval);
+            startTimer();
+            currentLetter = letters[Math.floor(Math.random() * letters.length)];
+            document.getElementById("letter").textContent = currentLetter.letter + ' ' + currentLetter.small;
+            let options = letters.filter(l => l.letter !== currentLetter.letter).sort(() => 0.5 - Math.random()).slice(0, 3);
+            options.push(currentLetter);
+            options.sort(() => 0.5 - Math.random());
+            let optionsContainer = document.getElementById("options");
             optionsContainer.innerHTML = "";
-            
             options.forEach(option => {
                 const button = document.createElement("button");
                 button.textContent = option.name;
@@ -95,34 +150,6 @@
                 optionsContainer.appendChild(button);
             });
             document.getElementById("message").textContent = "";
-        }
-
-        function checkAnswer(selected, button) {
-            if (answered) return;
-            answered = true;
-            
-            if (selected.letter === currentLetter.letter) {
-                document.getElementById("message").textContent = "✅ כל הכבוד!";
-                document.getElementById("correctSound").play();
-                score++;
-                streak++;
-                document.getElementById("score").textContent = score;
-                document.getElementById("streak").textContent = streak;
-                setTimeout(generateQuestion, 2000);
-            } else {
-                document.getElementById("message").textContent = "❌ נסה שנית";
-                document.getElementById("wrongSound").play();
-                button.classList.add("wrong");
-                streak = 0;
-                document.getElementById("streak").textContent = streak;
-                document.querySelectorAll(".option").forEach(opt => {
-                    opt.disabled = true;
-                    if (opt.textContent === currentLetter.name) {
-                        opt.classList.add("correct");
-                    }
-                });
-                setTimeout(generateQuestion, 3000);
-            }
         }
 
         generateQuestion();
