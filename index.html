@@ -35,6 +35,10 @@
             background-color: #e74c3c;
             transform: scale(1.05);
         }
+        .result-item.time-out {
+            background-color: #f39c12;
+            transform: scale(1.05);
+        }
         .result-item p {
             margin: 5px 0;
             font-size: 18px;
@@ -50,12 +54,32 @@
             content: '❌';
             margin-left: 10px;
         }
+        .result-item.time-out::before {
+            content: '⏳';
+            margin-left: 10px;
+        }
         #showResultsButton { margin-top: 20px; padding: 10px 20px; background-color: #3498db; color: white; font-size: 20px; border: none; border-radius: 10px; cursor: pointer; transition: 0.3s; }
         #showResultsButton:hover { background-color: #2980b9; transform: scale(1.05); }
+        .time-select-container { display: flex; justify-content: center; align-items: center; margin-top: 20px; gap: 15px; }
+        select { font-size: 18px; padding: 10px; border-radius: 5px; border: 1px solid #3498db; }
+        button { font-size: 18px; padding: 10px 20px; border-radius: 5px; border: 1px solid #3498db; background-color: #3498db; color: white; cursor: pointer; }
+        button:hover { background-color: #2980b9; }
     </style>
 </head>
 <body>
     <h1>משחק לימוד אותיות באנגלית</h1>
+
+    <!-- אפשרות לבחור זמן -->
+    <div class="time-select-container">
+        <label for="timeSelect">בחר זמן לתשובה נכונה: </label>
+        <select id="timeSelect">
+            <option value="5">5 שניות</option>
+            <option value="10" selected>10 שניות</option>
+            <option value="15">15 שניות</option>
+        </select>
+        <button onclick="startGame()">התחל משחק</button>
+    </div>
+
     <div class="letter" id="letter"></div>
     <div class="options" id="options"></div>
     <div class="message" id="message"></div>
@@ -113,6 +137,14 @@
         let musicPlaying = false;
         let timerInterval;
         let results = [];
+        let selectedTime = 10; // ברירת מחדל היא 10 שניות
+
+        // פונקציה להתחלת המשחק
+        function startGame() {
+            selectedTime = parseInt(document.getElementById("timeSelect").value);
+            document.querySelector(".time-select-container").style.display = "none"; // הסתר את בחירת הזמן
+            generateQuestion(); // התחל את המשחק
+        }
 
         // פונקציה להפעלת והפסקת המוזיקה
         document.getElementById("musicButton").onclick = function() {
@@ -127,99 +159,127 @@
             }
         };
 
-        // פונקציה להתחלת זמן המשחק
+        // פונקציה להפקת שאלה חדשה
+        function generateQuestion() {
+            currentLetter = letters[Math.floor(Math.random() * letters.length)];
+            document.getElementById("letter").textContent = `${currentLetter.letter} / ${currentLetter.small}`;
+
+            const options = [];
+            options.push(currentLetter);
+            while (options.length < 4) {
+                const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+                if (!options.includes(randomLetter)) options.push(randomLetter);
+            }
+            shuffleArray(options);
+
+            const optionsContainer = document.getElementById("options");
+            optionsContainer.innerHTML = '';
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.classList.add('option');
+                button.textContent = option.name;
+                button.onclick = () => checkAnswer(option, button);
+                optionsContainer.appendChild(button);
+            });
+
+            startTimer();
+        }
+
+        // פונקציה לבדוק את התשובה
+        function checkAnswer(selectedOption, button) {
+            clearInterval(timerInterval);
+            const isCorrect = selectedOption === currentLetter;
+            results.push({
+                letter: currentLetter.letter,
+                chosenAnswer: selectedOption.name,
+                correctAnswer: currentLetter.name,
+                isCorrect: isCorrect,
+                timeOut: timeLeft <= 0
+            });
+
+            if (isCorrect) {
+                score++;
+                document.getElementById("score").textContent = score;
+            }
+            button.disabled = true;
+            showMessage(isCorrect ? "תשובה נכונה!" : "תשובה שגויה!");
+
+            setTimeout(generateQuestion, 1000);
+        }
+
+        // פונקציה להציג הודעה
+        function showMessage(message) {
+            const messageContainer = document.getElementById("message");
+            messageContainer.textContent = message;
+            setTimeout(() => messageContainer.textContent = '', 1000);
+        }
+
+        // הפעלת טיימר
         function startTimer() {
-            timeLeft = 10;
+            timeLeft = selectedTime;
             document.getElementById("timer").textContent = timeLeft;
             timerInterval = setInterval(() => {
                 timeLeft--;
                 document.getElementById("timer").textContent = timeLeft;
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
-                    document.getElementById("message").textContent = "נגמר הזמן!";
-                    showCorrectAnswer();
-                    setTimeout(generateQuestion, 2000);
+                    results.push({
+                        letter: currentLetter.letter,
+                        chosenAnswer: "לא נבחרה תשובה",
+                        correctAnswer: currentLetter.name,
+                        isCorrect: false,
+                        timeOut: true
+                    });
+                    showMessage("הזמן נגמר!");
+                    setTimeout(generateQuestion, 1000);
                 }
             }, 1000);
         }
 
-        // פונקציה לבדוק תשובה
-        function checkAnswer(option, button) {
-            clearInterval(timerInterval);
-            let result = {
-                letter: currentLetter.letter,
-                chosenAnswer: button.textContent,
-                correctAnswer: currentLetter.name,
-                isCorrect: option.letter === currentLetter.letter
-            };
-            results.push(result);
-
-            if (option.letter === currentLetter.letter) {
-                button.classList.add("correct");
-                score++;
-                document.getElementById("score").textContent = score;
-                document.getElementById("correctSound").play();
-                document.getElementById("message").textContent = "תשובה נכונה!";
-            } else {
-                button.classList.add("wrong");
-                document.getElementById("wrongSound").play();
-                document.getElementById("message").textContent = "תשובה שגויה!";
+        // ערבוב אובייקטים במערך
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
             }
-            setTimeout(generateQuestion, 1000);
         }
 
-        // פונקציה להציג את התשובה הנכונה בסיום הזמן
-        function showCorrectAnswer() {
-            const buttons = document.querySelectorAll('.option');
-            buttons.forEach(button => {
-                if (button.textContent === currentLetter.name) {
-                    button.classList.add("correct");
-                }
-            });
-        }
+        // הצגת תוצאות המשחק
+        document.getElementById("showResultsButton").onclick = function() {
+            const resultsContainer = document.getElementById("results");
+            resultsContainer.innerHTML = '';
 
-        // פונקציה ליצירת שאלה חדשה
-        function generateQuestion() {
-            clearInterval(timerInterval);
-            startTimer();
-            currentLetter = letters[Math.floor(Math.random() * letters.length)];
-            document.getElementById("letter").textContent = currentLetter.letter + ' ' + currentLetter.small;
-            let options = letters.filter(l => l.letter !== currentLetter.letter).sort(() => 0.5 - Math.random()).slice(0, 3);
-            options.push(currentLetter);
-            options.sort(() => 0.5 - Math.random());
-            let optionsContainer = document.getElementById("options");
-            optionsContainer.innerHTML = "";
-            options.forEach(option => {
-                const button = document.createElement("button");
-                button.textContent = option.name;
-                button.className = "option";
-                button.onclick = () => checkAnswer(option, button);
-                optionsContainer.appendChild(button);
-            });
-            document.getElementById("message").textContent = "";
-        }
-
-        // פונקציה להציג את התוצאות
-        function showResults() {
-            let resultsContainer = document.getElementById("results");
-            resultsContainer.innerHTML = "<h2>תוצאות המשחק:</h2>";
             results.forEach(result => {
-                let resultItem = document.createElement("div");
-                resultItem.className = "result-item " + (result.isCorrect ? "correct" : "wrong");
-                resultItem.innerHTML = ` 
-                    <p><strong>האות:</strong> ${result.letter}</p>
+                const resultDiv = document.createElement('div');
+                resultDiv.classList.add('result-item');
+                if (result.isCorrect) {
+                    resultDiv.classList.add('correct');
+                } else if (result.timeOut) {
+                    resultDiv.classList.add('time-out');
+                } else {
+                    resultDiv.classList.add('wrong');
+                }
+                resultDiv.innerHTML = `
+                    <p><strong>אות:</strong> ${result.letter}</p>
+                    <p><strong>תשובה שנבחרה:</strong> ${result.chosenAnswer}</p>
                     <p><strong>תשובה נכונה:</strong> ${result.correctAnswer}</p>
-                    <p><strong>תשובה שלך:</strong> ${result.chosenAnswer}</p>
                 `;
-                resultsContainer.appendChild(resultItem);
+                resultsContainer.appendChild(resultDiv);
             });
+
+            // סטטיסטיקה
+            const correctAnswers = results.filter(result => result.isCorrect).length;
+            const wrongAnswers = results.filter(result => !result.isCorrect && !result.timeOut).length;
+            const timeOutAnswers = results.filter(result => result.timeOut).length;
+
+            resultsContainer.innerHTML += `
+                <p><strong>תשובות נכונות:</strong> ${correctAnswers}</p>
+                <p><strong>תשובות שגויות:</strong> ${wrongAnswers}</p>
+                <p><strong>זמן עבר ללא תשובה:</strong> ${timeOutAnswers}</p>
+            `;
+
             resultsContainer.style.display = "block";
-        }
-
-        // כפתור לצפייה בתוצאות בכל שלב
-        document.getElementById("showResultsButton").onclick = showResults;
-
-        generateQuestion();
+        };
     </script>
 </body>
 </html>
